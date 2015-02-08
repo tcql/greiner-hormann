@@ -15,14 +15,14 @@ var intersect = require('../'),
 // });
 
 
-test('armenia', function (t) {
+// test('armenia', function (t) {
 
-    var armenia = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/armenia.json'));
-    var is = intersect(armenia[0], armenia[0]);
-    console.log(is);
-    fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
-    t.end();
-})
+//     var armenia = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/armenia.json'));
+//     var is = intersect(armenia[0], armenia[0]);
+//     console.log(is);
+//     fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
+//     t.end();
+// })
 
 // test('squares', function (t) {
 //   square = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/cut.json'));
@@ -33,14 +33,14 @@ test('armenia', function (t) {
 // });
 
 
-// test('squares', function (t) {
-//   square0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/slice0.geojson'));
-//   square1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/slice1.geojson'));
-//   var is = intersect(square0, square1);
-//   fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
-//   console.log(is);
-//   t.end();
-// });
+test('squares', function (t) {
+  square0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/square0.geojson'));
+  square1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/square1.geojson'));
+  var is = intersect(square0, square1);
+  fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
+  console.log(is);
+  t.end();
+});
 // test('squares', function (t) {
 //   square0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/square0.geojson'));
 //   square1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/square1.geojson'));

@@ -1,7 +1,9 @@
-var ghClipping = require('./greiner-hormann');
+var ghClipping = require('./lib/greiner-hormann');
 var turfInside = require('turf-inside');
 var turfPoint = require('turf-point');
 var turfPolygon = require('turf-polygon');
+var union = require('./lib/union');
+var util = require('./lib/util');
 
 module.exports = function(subject, clipper) {
   // TODO: make this work with more interesting geometries
@@ -17,7 +19,8 @@ module.exports = function(subject, clipper) {
   }
 
   // To deal with holes, get all holes for both polygons
-  var originalHoles = subCoords.slice(1).concat(clipCoords.slice(1));
+  var originalHoles =subCoords.slice(1).concat(clipCoords.slice(1));
+
 
   // clip holes against the intersection areas to find if any
   // of them cut into the intersection hulls. If they don't,
@@ -50,7 +53,7 @@ module.exports = function(subject, clipper) {
  */
 function clipHoles(holes, intersect) {
   if (holes.length > 0) {
-    holes = unionHoles(holes);
+    holes = union(holes);
 
     // Next we'll subtract each hole from each intersection polygon.
     for (var i = 0; i < holes.length; i++) {

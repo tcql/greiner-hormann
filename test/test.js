@@ -33,14 +33,14 @@ var intersect = require('../'),
 // });
 
 
-// test('squares', function (t) {
-//   square0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/square0.geojson'));
-//   square1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/square1.geojson'));
-//   var is = intersect(square0, square1);
-//   fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
-//   console.log(is);
-//   t.end();
-// });
+test('squares', function (t) {
+  square0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/square0.geojson'));
+  square1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/holes/square1.geojson'));
+  var is = intersect(square0, square1);
+  fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
+  console.log(is);
+  t.end();
+});
 // test('squares', function (t) {
 //   square0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/square0.geojson'));
 //   square1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/square1.geojson'));

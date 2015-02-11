@@ -2,7 +2,7 @@ var ghClipping = require('./lib/greiner-hormann');
 var turfInside = require('turf-inside');
 var turfPoint = require('turf-point');
 var turfPolygon = require('turf-polygon');
-var union = require('./lib/union');
+var intersect = require('./lib/intersect');
 var util = require('./lib/util');
 
 module.exports = function(subject, clipper) {
@@ -12,33 +12,24 @@ module.exports = function(subject, clipper) {
 
   // According to GeoJSON spec, the first element in a set of polygon rings
   // *MUST* be the outer ring. So that's where we start.
-  var intersect = ghClipping(subCoords[0], clipCoords[0], true, true);
+  var is = intersect(subCoords, clipCoords);
 
-  if (!intersect) {
-    intersect = [];
+  if (!is) {
+    is = [];
   }
 
-  // To deal with holes, get all holes for both polygons
-  var originalHoles =subCoords.slice(1).concat(clipCoords.slice(1));
-
-
-  // clip holes against the intersection areas to find if any
-  // of them cut into the intersection hulls. If they don't,
-  // they'll be returned in the array as rings
-  intersect = clipHoles(originalHoles, intersect);
-
-  if (intersect.length == 0) {
+  if (is.length == 0) {
     // console.log("No intersection")
     // TODO: Handle this?
-  } else if (intersect.length == 1) {
-    return turfPolygon(intersect[0]);
+  } else if (is.length == 1) {
+    return turfPolygon(is[0]);
   } else {
     return {
       "type": "Feature",
       "properties": {},
       "geometry": {
         "type": "MultiPolygon",
-        "coordinates": intersect
+        "coordinates": is
       }
     };
   }

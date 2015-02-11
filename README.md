@@ -1,65 +1,35 @@
-# turf-intersect
+# Greiner-Hormann Polygon Clipping
 
-[![build status](https://secure.travis-ci.org/Turfjs/turf-intersect.png)](http://travis-ci.org/Turfjs/turf-intersect)
+This is an experimental implementation of the Greiner-Hormann polygon clipping algorithm, with additional degeneracy handling.
 
-find the intersection of spatial features
+**This is very unfinished and very likely to change!**
+
+The end goal of this is to provide a base polygon clipping library that will support set-theoretic geometry operations for use in [TurfJs](https://github.com/turfjs/turf), as a replacement for the JSTS dependency.
+
+Right now, index.js represents a test implementation of the `intersect` method.
+
+### Benchmarks
+
+Run `node bench`. This runs the same benchmark tests that `turf.intersect` had been using, since this is the major point of comparison to the prior JSTS implementation.
+
+### Tests
+
+Run `npm test`. This runs tests for `intersect` only. There are numerous tests for intersection cases, but most are commented out at the moment, since I've been frequently doing a lot of logging and hand checking on individual cases.
 
 
-### `turf.intersect(poly1, poly2)`
+### Known Issues
 
-Takes two Polygon features and finds their intersection.
-
-
-### Parameters
-
-| parameter | type    | description        |
-| --------- | ------- | ------------------ |
-| `poly1`   | Polygon | the first Polygon  |
-| `poly2`   | Polygon | the second Polygon |
+- Intersecting identical geometries will produce an empty result
+- Clipping anything other than two `Polygons` won't work (but polygons with holes are working)
+- The `union` lib function signature is different than usual; for now it takes an array of polygons / multipolygons, rather than two geometries to union. This is convenience for internal use, so maybe I'll provide two versions of it in the future.
+- The `subtract` lib doesn't work with holes at all
+- Some of the code is pretty ugly
 
 
-### Example
+### Sources
 
-```js
-var poly1 = turf.polygon([[
- [-122.801742, 45.48565],
- [-122.801742, 45.60491],
- [-122.584762, 45.60491],
- [-122.584762, 45.48565],
- [-122.801742, 45.48565]
-]]);
-poly1.properties.fill = '#0f0';
-var poly2 = turf.polygon([[
- [-122.520217, 45.535693],
- [-122.64038, 45.553967],
- [-122.720031, 45.526554],
- [-122.669906, 45.507309],
- [-122.723464, 45.446643],
- [-122.532577, 45.408574],
- [-122.487258, 45.477466],
- [-122.520217, 45.535693]
-]]);
-poly2.properties.fill = '#00f';
-var polygons = turf.featurecollection([poly1, poly2]);
-
-var intersection = turf.intersect(poly1, poly2);
-
-//=polygons
-
-//=intersection
-```
-
-## Installation
-
-Requires [nodejs](http://nodejs.org/).
-
-```sh
-$ npm install turf-intersect
-```
-
-## Tests
-
-```sh
-$ npm test
-```
+- [Greiner-Hormann algorithm](http://davis.wpi.edu/~matt/courses/clipping/)
+- [Degeneracy handling](http://arxiv-web3.library.cornell.edu/pdf/1211.3376v1.pdf)
+- [Python Polyclip](https://github.com/helderco/univ-polyclip)
+- [Python Polyclip + some degeneracy handling](https://github.com/karimbahgat/Pure-Python-Greiner-Hormann-Polygon-Clipping/)
 

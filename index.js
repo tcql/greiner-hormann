@@ -5,7 +5,10 @@ var utils = require('./lib/util');
 
 module.exports = {
   union: union,
-  intersect: intersect
+  intersect: intersect,
+
+  // include utils to make things easier
+  utils: utils
 };
 
 

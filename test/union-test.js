@@ -1,5 +1,6 @@
 var union = require('../lib/union'),
-  test = require('tape');
+  test = require('tape')
+  fs = require('fs');
 
 var polys = [
     [
@@ -23,6 +24,50 @@ var polys = [
         [
           -2.4609375,
           -0.7031073524364783
+        ]
+      ],
+      [
+        [
+          -2.30712890625,
+          -0.4833927027896987
+        ],
+        [
+          -2.30712890625,
+          -0.19775351362549398
+        ],
+        [
+          -1.9116210937499998,
+          -0.19775351362549398
+        ],
+        [
+          -1.9116210937499998,
+          -0.4833927027896987
+        ],
+        [
+          -2.30712890625,
+          -0.4833927027896987
+        ]
+      ],
+      [
+        [
+          1.0546875,
+          1.3402098002785028
+        ],
+        [
+          1.0546875,
+          1.6696855009865839
+        ],
+        [
+          1.3623046875,
+          1.6696855009865839
+        ],
+        [
+          1.3623046875,
+          1.3402098002785028
+        ],
+        [
+          1.0546875,
+          1.3402098002785028
         ]
       ]
     ],
@@ -143,7 +188,15 @@ var polys2 = [
 ]
 
 
-test('union polygons', function (t) {
-    console.log(union(polys));
-    t.end();
+test('union polygons in one set', function (t) {
+  var pp = union(polys);
+  fs.writeFileSync(__dirname+"/fixtures/out/test.geojson", JSON.stringify(pp))
+  t.end();
 });
+
+// test('union polys in two sets', function (t) {
+//   var p1 = polys.slice(0, 2);
+//   var p2 = polys.slice(2);
+//   union(p1, p2);
+//   t.end();
+// });

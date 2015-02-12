@@ -5,6 +5,8 @@ var turfPolygon = require('turf-polygon');
 var intersect = require('./lib/intersect');
 var util = require('./lib/util');
 
+
+
 module.exports = function(subject, clipper) {
   // TODO: make this work with more interesting geometries
   var subCoords = subject.geometry ? subject.geometry.coordinates : subject.coordinates;

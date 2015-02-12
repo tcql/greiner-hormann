@@ -1,4 +1,4 @@
-var union = require('../lib/union'),
+var union = require('../').union,
   test = require('tape')
   fs = require('fs');
 

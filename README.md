@@ -22,8 +22,7 @@ Run `npm test`. This runs tests for `intersect` only. There are numerous tests f
 ### Known Issues
 
 - Intersecting identical geometries will produce an empty result
-- Clipping anything other than two `Polygons` won't work (but polygons with holes are working)
-- The `union` lib function signature is different than usual; for now it takes an array of polygons / multipolygons, rather than two geometries to union. This is convenience for internal use, so maybe I'll provide two versions of it in the future.
+- Clipping anything other than two `Polygons` (or `MultiPolygons`) won't work (but polygons with holes are working)
 - The `subtract` lib doesn't work with holes at all
 - Some of the code is pretty ugly
 

@@ -6,15 +6,17 @@ This is an experimental implementation of the Greiner-Hormann polygon clipping a
 
 The end goal of this is to provide a base polygon clipping library that will support set-theoretic geometry operations for use in [TurfJs](https://github.com/turfjs/turf), as a replacement for the JSTS dependency.
 
-Right now, index.js represents a test implementation of the `intersect` method.
-
 ### Benchmarks
 
 Run `node bench`. This runs the same benchmark tests that `turf.intersect` had been using, since this is the major point of comparison to the prior JSTS implementation.
 
 ### Tests
 
-Run `npm test`. This runs tests for `intersect` only. There are numerous tests for intersection cases, but most are commented out at the moment, since I've been frequently doing a lot of logging and hand checking on individual cases.
+Run `npm test`. This runs tests for `intersect` only. There are numerous tests for intersection cases, but most are commented out at the moment, since I've been frequently doing a lot of logging and hand checking on individual cases. I'm in the process of migrating to separate test files per exported method:
+
+- `node test/union-test`
+- `node test/intersect-test`
+- `node test/util-test`
 
 
 ### Known Issues

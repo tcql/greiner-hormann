@@ -1,22 +1,26 @@
 {
   "name": "greiner-hormann",
-  "version": "0.9.0",
-  "description": "find the intersection of spatial features",
+  "version": "1.0.0",
+  "description": "polygon / polygon clipping utilities",
   "main": "index.js",
   "scripts": {
     "test": "node test/test.js",
-    "doc": "dox -r < index.js | doxme --readme > README.md"
+    "doc": "dox -r < index.js | doxme --readme > README.md",
+    "build-debug": "browserify index.js --debug --standalone greiner-hormann | exorcist dist/greiner-hormann.js.map > dist/greiner-hormann.js",
+    "build-min": "browserify index.js --standalone greiner-hormann | uglifyjs -c -m > dist/greiner-hormann.min.js",
+    "build": "npm run build-debug && npm run build-min"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/tchannel/greiner-hormann.git"
   },
   "keywords": [
-    "turf",
     "gis",
     "union",
     "difference",
-    "intersect"
+    "intersect",
+    "polygon",
+    "clipping"
   ],
   "author": "Tim Channell",
   "license": "ISC",
@@ -26,10 +30,12 @@
   "homepage": "https://github.com/tchannel/greiner-hormann",
   "devDependencies": {
     "benchmark": "^1.0.0",
+    "browserify": "^9.0.3",
+    "dox": "^0.6.1",
+    "doxme": "^1.4.2",
     "glob": "~4.3.1",
     "tape": "~3.0.3",
-    "dox": "^0.6.1",
-    "doxme": "^1.4.2"
+    "uglify-js": "^2.4.16"
   },
   "dependencies": {
     "geojson-equality": "^0.1.2",

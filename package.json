@@ -1,7 +1,7 @@
 {
   "name": "greiner-hormann",
   "version": "1.0.0",
-  "description": "polygon / polygon clipping utilities",
+  "description": "Methods for spatial operations on (Multi)Polygons",
   "main": "index.js",
   "scripts": {
     "test": "node test/test.js",

@@ -1,20 +1,21 @@
 var union = require('../').union,
-  test = require('tape')
+  test = require('tape'),
+  glob = require('glob')
   fs = require('fs');
 
-
-test('union polygons in one set', function (t) {
-  var polys = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/union/Union1.json'));
-  var u = union(polys[0]);
-  t.deepEqual(u, polys[1]);
+test('union polygons', function (t) {
+  glob.sync(__dirname + '/fixtures/in/union/*.json').forEach(function(input) {
+      var features = JSON.parse(fs.readFileSync(input));
+      var output = union(features[0], features[1]);
+      t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/', '/out/'))), input);
+  });
   t.end();
 });
 
-test('union polys in two sets', function (t) {
-  var polys = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/union/Union1.json'));
-  var p1 = polys[0].slice(0, 2);
-  var p2 = polys[0].slice(2);
-  var u = union(p1, p2);
-  t.deepEqual(u, polys[1]);
+test('union polygons in one set', function (t) {
+  var input = __dirname+'/fixtures/in/union/Union1.json'
+  var polys = JSON.parse(fs.readFileSync(input));
+  var u = union(polys);
+  t.deepEqual(u, JSON.parse(fs.readFileSync(input.replace('/in/', '/out/'))));
   t.end();
 });

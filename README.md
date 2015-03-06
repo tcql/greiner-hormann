@@ -21,8 +21,7 @@ Run `npm test`. This runs tests for `intersect` only. There are numerous tests f
 
 ### Known Issues
 
-- Intersecting identical geometries will produce an empty result
-- Clipping anything other than two `Polygons` (or `MultiPolygons`) won't work (but polygons with holes are working)
+- Clipping anything other than two `Polygons` (or `MultiPolygons`) won't work
 - The `subtract` lib doesn't work with holes at all
 - Some of the code is pretty ugly
 

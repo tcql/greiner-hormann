@@ -1,4 +1,4 @@
-var intersect = require('../').intersect,
+// var intersect = require('../').intersect,
   test = require('tape')
   fs = require('fs');
 

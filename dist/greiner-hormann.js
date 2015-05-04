@@ -4,7 +4,7 @@ var union = require('./lib/union');
 var utils = require('./lib/util');
 
 
-module.exports = {
+window.gh = {
   union: union,
   intersect: intersect,
 
@@ -83,20 +83,19 @@ module.exports = function(subject, clipper, s_forward, c_forward) {
   var vertices = buildIntersectionLists(sPoints, cPoints, sPoly, cPoly);
   markDegensAsIntersect(sPoints);
 
+
   /**
    * PHASE TWO: Identify Entry/Exit
    */
-  setEntryExit(sPoints, cPoints, s_forward, c_forward, sPoly, cPoly);
-
-
+  // setEntryExit(sPoints, cPoints, s_forward, c_forward, sPoly, cPoly);
+  setEntryExit2(sPoints, cPoints, s_forward, c_forward, sPoints, cPoints);
+  logPoints(sPoints, cPoints);
   /**
    * PHASE THREE: Build clipped polys
    */
   var list = buildPolygons(sPoints);
-
-  /**
-   * Additional Phase: handle special cases (there were no intersections at all)
-   */
+  console.log(list[0]);
+  return [[]];
   return processPolygons(list, subject, clipper, sPoly, cPoly, s_forward, c_forward);
 }
 
@@ -196,13 +195,19 @@ function buildPolygons(sPoints) {
 
       if (curr.entry) {
         do {
-          curr = curr.next;
-          poly.push([curr.x, curr.y]);
+            curr = curr.next;
+            if (!curr.intersect) {
+              poly.push([curr.x, curr.y]);
+            }
+
         } while (!curr.intersect);
       } else {
         do {
           curr = curr.prev;
-          poly.push([curr.x, curr.y]);
+          if (!curr.intersect) {
+            poly.push([curr.x, curr.y]);
+          }
+
         } while (!curr.intersect);
       }
 
@@ -396,12 +401,16 @@ function setEntryExit(list, list2, s_forward, c_forward, sPoly, cPoly) {
       var remove = (curr.areTypesEqual() && curr.neighbor.areTypesEqual());
       handleEntryAndType(curr, sForward, cForward, remove);
       handleEntryAndType(curr.neighbor, cForward, sForward, remove);
+      if (remove) curr.removeCond = "Doubled"
 
       if (!remove && curr.entryIs(!sForward, !cForward)) {
+        c
+        curr.removeCond = "No Double, both nonentry"
         remove = true;
         curr.type = 'out';
         curr.neighbor.type = 'out';
       } else if (!remove && curr.entryIs(sForward, cForward)) {
+        curr.removeCond = "No Double, both entry";
         remove = true;
         curr.type = 'in';
         curr.neighbor.type = 'in';
@@ -414,6 +423,62 @@ function setEntryExit(list, list2, s_forward, c_forward, sPoly, cPoly) {
     curr = curr.next;
   } while (curr != list.first);
 }
+
+
+function setEntryExit2(sPoints, cPoints, sForward, cForward, sPoly, cPoly)
+{
+  var first = sPoints.first;
+  var curr = first;
+
+  do {
+    handleEnEx(curr);
+    if (curr.neighbor) {
+      handleEnEx(curr.neighbor);
+      console.log(curr.entryPair());
+      switch (curr.entryPair()) {
+        case "en/en":
+          curr.remove = true;
+          curr.type = "in";
+          break;
+        case "ex/ex":
+          curr.remove = true;
+          curr.type = "out";
+          break;
+      }
+    }
+
+    curr = curr.next;
+  } while (curr != first)
+}
+
+
+function handleEnEx(curr)
+{
+  switch (curr.pairing()) {
+      case "in/out":
+      case "on/out":
+      case "in/on":
+        curr.entry = false;
+        break;
+      case "out/in":
+      case "on/in":
+      case "out/on":
+        curr.entry = true;
+        break;
+      case "out/out":
+      case "in/in":
+      case "on/on":
+        var np = curr.neighbor.pairing();
+        if (np == "out/out" || np == "in/in" || np == "on/on") {
+          curr.remove = true;
+        } else {
+          handleEnEx(curr.neighbor);
+          curr.entry = !curr.neighbor.entry;
+        }
+        break;
+    }
+}
+
 
 /**
  * Handles setting the entry/exit flag as well as readjusting the "type"
@@ -545,6 +610,7 @@ function logPoints(sPoints, cPoints) {
     curr = curr.next
   } while (curr != sPoints.first)
   console.log("-----------------")
+  if (!cPoints) return;
   var curr = cPoints.first
   do {
     logPoint(curr);
@@ -577,6 +643,9 @@ function logPoint(curr) {
           +" / "+String(curr.type+" ").slice(0, 3)
           +" / "+String(curr.next.type+" ").slice(0, 3)
       +" ALPHA: "+curr.alpha
+      +" REMOVE: "+ (curr.remove ? "Yes": "No") + " "
+      +" DOUBLE: "+ curr.removeCond
+
     );
 }
 
@@ -842,10 +911,18 @@ function unionRings(rings)
 // to make things faster for complex / very degenerate sets
 module.exports = function(coords, coords2) {
   if (typeof coords2 != 'undefined' && coords2 != null) {
-    var coords = coords.concat(coords2);
+    // TODO: make this more robust. This will fail in some cases
+    if (!utils.isMultiPolygon(coords)) {
+      coords = [coords];
+    }
+    if (!utils.isMultiPolygon(coords2)) {
+      coords2 = [coords2];
+    }
+    coords = coords.concat(coords2)
   }
 
-  var coords = utils.clone(coords);
+
+  coords = utils.clone(coords);
   var hulls = utils.outerHulls(coords);
   var holes = utils.holes(coords);
 
@@ -1015,7 +1092,20 @@ function Vertex (x, y, alpha, intersect, degenerate) {
     this.prev = null;
     this.type = null; // can be "in", "out", "on"
     this.justMarked = false;
+    this.remove = false;
 }
+
+Vertex.prototype.pairing = function () {
+    return this.prev.type + "/" + this.next.type;
+}
+
+Vertex.prototype.entryPair = function() {
+    var entry = this.entry ? "en" : "ex";
+    var nEntry = this.neighbor.entry ? "en" : "ex";
+
+    return entry+"/"+nEntry;
+}
+
 
 Vertex.prototype.equals = function(other) {
     if (this.x == other.x && this.y == other.y) {
@@ -1417,7 +1507,7 @@ function inRing (pt, ring) {
   for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     var xi = ring[i][0], yi = ring[i][1];
     var xj = ring[j][0], yj = ring[j][1];
-    
+
     var intersect = ((yi > pt[1]) != (yj > pt[1]))
         && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
     if (intersect) isInside = !isInside;

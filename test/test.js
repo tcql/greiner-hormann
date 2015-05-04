@@ -1,28 +1,30 @@
 var gh = require('../'),
   test = require('tape'),
   glob = require('glob'),
-  fs = require('fs');
+  fs = require('fs'),
+  polygon = require('turf-polygon');
 
 
-// test('degeneracies', function (t) {
-//     var shape0 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/degeneracies/shape0.geojson'));
-//     var shape1 = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/degeneracies/shape1.geojson'));
-//     var is = intersect(shape0, shape1);
-//     fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
-//     console.log("RESULT:")
-//     console.log(is);
-//     t.end();
-// });
-
-
-test('armenia', function (t) {
-
-    var armenia = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/armenia.json'));
-    var is = gh.union(armenia[0].geometry.coordinates, armenia[0].geometry.coordinates);
+test('degeneracies', function (t) {
+    var features = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/intersect/Degenerate.json'));
+    var shape0 = features[0];
+    var shape1 = features[1];
+    var is = gh.intersect(shape0, shape1);
+    fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(polygon(is[0]), null, 2))
+    console.log("RESULT:")
     console.log(is);
-    fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
     t.end();
-})
+});
+
+
+// test('armenia', function (t) {
+
+//     var armenia = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/armenia.json'));
+//     var is = gh.union(armenia[0].geometry.coordinates, armenia[0].geometry.coordinates);
+//     console.log(is);
+//     fs.writeFileSync(__dirname + '/fixtures/out/test.geojson', JSON.stringify(is, null, 2))
+//     t.end();
+// })
 
 // test('squares', function (t) {
 //   square = JSON.parse(fs.readFileSync(__dirname + '/fixtures/in/cut.json'));

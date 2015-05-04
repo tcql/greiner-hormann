@@ -1,0 +1,13 @@
+{
+	"folders":
+	[
+		{
+			"follow_symlinks": true,
+			"path": "/home/tcql/Code/turf-plugins/greiner-hormann"
+		},
+		{
+			"follow_symlinks": true,
+			"path": "/home/tcql/Code/turf-plugins/polyclip"
+		}
+	]
+}

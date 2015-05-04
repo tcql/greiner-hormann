@@ -1,6 +1,6 @@
 var union = require('../').union,
   test = require('tape'),
-  glob = require('glob')
+  glob = require('glob'),
   fs = require('fs');
 
 test('union polygons', function (t) {

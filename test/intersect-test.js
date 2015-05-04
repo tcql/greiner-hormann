@@ -1,22 +1,16 @@
-// var intersect = require('../').intersect,
+var intersect = require('../').intersect,
   test = require('tape')
-  fs = require('fs');
+  fs = require('fs'),
+  glob = require('glob');
 
-
-// test('union polygons in one set', function (t) {
-//   var polys = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/union/Union1.json'));
-//   var u = intersect(polys[0]);
-//   t.deepEqual(u, polys[1]);
-//   t.end();
-// });
-
-test('union polys in two sets', function (t) {
-  var polys = JSON.parse(fs.readFileSync(__dirname+'/fixtures/in/union/Union1.json'));
-  var p1 = polys[0].slice(0, 2);
-  var p2 = polys[0].slice(2);
-  var u = intersect(p1, p2);
-  // console.log(u);
-  // fs.writeFileSync(__dirname+'/fixtures/out/test.json', JSON.stringify(u, null, 2))
-  t.deepEqual(u, polys[1]);
+test('intersect polygons', function (t) {
+  glob.sync(__dirname + '/fixtures/in/intersect/*.json').forEach(function(input) {
+      var features = JSON.parse(fs.readFileSync(input));
+      console.log(features);
+      var output = intersect(features[0], features[1]);
+      console.log(output);
+      fs.writeFileSync(input.replace('/in/', '/out/'), JSON.stringify(output));
+      t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/', '/out/'))), input);
+  });
   t.end();
 });

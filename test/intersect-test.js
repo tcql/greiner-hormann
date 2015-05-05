@@ -6,9 +6,7 @@ var intersect = require('../').intersect,
 test('intersect polygons', function (t) {
   glob.sync(__dirname + '/fixtures/in/intersect/*.json').forEach(function(input) {
       var features = JSON.parse(fs.readFileSync(input));
-      console.log(features);
       var output = intersect(features[0], features[1]);
-      console.log(output);
       fs.writeFileSync(input.replace('/in/', '/out/'), JSON.stringify(output, null, 2));
       t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/', '/out/'))), input);
   });

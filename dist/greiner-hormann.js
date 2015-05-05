@@ -4,7 +4,7 @@ var union = require('./lib/union');
 var utils = require('./lib/util');
 
 
-window.gh = {
+module.exports = {
   union: union,
   intersect: intersect,
 
@@ -20,7 +20,6 @@ var turfPolygon = require('turf-polygon');
 var Ring = require('./ring');
 var Vertex = require('./vertex');
 var clockwise = require('turf-is-clockwise');
-var equals = new (require('geojson-equality'));
 
 /**
  * Clips two polygons using Greiner-Hormann, with degeneracy handling
@@ -34,6 +33,8 @@ var equals = new (require('geojson-equality'));
  * the remainder is derived from two papers
  */
 module.exports = function(subject, clipper, s_forward, c_forward) {
+  var mode;
+
   if (!clockwise(subject)) {
     subject.reverse();
   }
@@ -62,8 +63,18 @@ module.exports = function(subject, clipper, s_forward, c_forward) {
   //  Subtract (A - B) | false       | true
   //  Subtract (B - A) | true        | false
   //
-  s_forward = s_forward === false ? false : true;
-  c_forward = c_forward === false ? false : true;
+  s_forward = !!s_forward;
+  c_forward = !!c_forward;
+
+  if (!s_forward && !c_forward) {
+    mode = 'union';
+  } else if (s_forward && c_forward) {
+    mode = 'intersect';
+  } else if (!s_forward && c_forward) {
+    mode = 'subtractB'; // A - B
+  } else if (s_forward && !c_forward) {
+    mode = 'subtractA'; // B - A
+  }
 
   // Greiner-Hormann clipping uses 3 phases:
   //  1. Find intersection vertices, build data structure
@@ -74,8 +85,8 @@ module.exports = function(subject, clipper, s_forward, c_forward) {
   //  at the end, because GH won't handle cases where
   //  one of the polygons fully encloses the other, or
   //  the two polygons are totally disjoint
-  var sPoints = Ring.fromCoords(subject);
-  var cPoints = Ring.fromCoords(clipper);
+  var sPoints = Ring.fromArray(subject);
+  var cPoints = Ring.fromArray(clipper);
 
   /**
    * PHASE ONE: Identify Intersections
@@ -85,93 +96,77 @@ module.exports = function(subject, clipper, s_forward, c_forward) {
 
 
   /**
+   * OPTIMIZATION: check for known cases where we can bail out early
+   */
+  var maybeResult;
+  if (maybeResult = checkQuitCases(sPoints, cPoints, subject, clipper, mode)) {
+    return maybeResult;
+  }
+
+  /**
    * PHASE TWO: Identify Entry/Exit
    */
-  // setEntryExit(sPoints, cPoints, s_forward, c_forward, sPoly, cPoly);
-  setEntryExit2(sPoints, cPoints, s_forward, c_forward, sPoints, cPoints);
-  logPoints(sPoints, cPoints);
+  setEntryExit(sPoints);
+  // logPoints(sPoints, cPoints);
+
   /**
    * PHASE THREE: Build clipped polys
    */
-  var list = buildPolygons(sPoints);
-  console.log(list[0]);
-  return [[]];
-  return processPolygons(list, subject, clipper, sPoly, cPoly, s_forward, c_forward);
+  return buildPolygons(sPoints, s_forward, c_forward);
 }
 
 /**
- * Handles special cases depending on the clipping type.
- * As noted earlier, the s_forward and c_forward arguments
- * can be used to derive what the clipping operation is
+ * Handles some cases here we can bail out without fully computing the intersection.
  *
- * @param  {[type]} list      List of clipped polygons
- * @param  {[type]} subject   The subject coordinate list
- * @param  {[type]} clipper   The clipper coordinate list
- * @param  {[type]} sPoly     The subject as a geojson poly
- * @param  {[type]} cPoly     The clipper as a geojson poly
- * @param  {[type]} s_forward Whether the subject traversal is forward or backward
- * @param  {[type]} c_forward Whether the clipper traversal is forward or backward
- * @return {[type]}           [description]
+ * @return {[type]} [description]
  */
-function processPolygons(list, subject, clipper, sPoly, cPoly, s_forward, c_forward) {
-  if (list.length != 0) {
-    return list;
-  }
-  // Union Mode.
-  //
-  // - If the list is empty, the polys didn't intersect
-  // but should still be returned as a multipolygon
-  // - OR, the shapes are literally the same shape.
-  if (!s_forward && !c_forward) {
-    if (equals.compare(sPoly, cPoly)) {
-      return [[subject]];
+function checkQuitCases(sPoints, cPoints, subject, clipper, mode) {
+  var totalS = sPoints.count();
+  var totalC = cPoints.count();
+
+  // No intersections exist
+  if (sPoints.count('intersect', true) === 0) {
+    switch (mode) {
+      case "union":
+        // Return both shapes as a multipolygon
+        return [[subject], [clipper]];
+        break;
+      case "intersect":
+        // There's no intersection, return nothing.
+        return [];
+        break;
+      case "subtractB":
+        // If B is inside of A, it's a hole.
+        if (cPoints.first.type == "in") {
+          return [[subject, clipper]];
+        }
+        // Otherwise it's disjoint, so we ignore it.
+        return [[subject]]
+        break;
+      case "subtractA":
+        // If A is inside of B, it's a hole.
+        if (sPoints.first.type == "in") {
+          return [[clipper, subject]];
+        }
+        // Otherwise it's disjoint, so we ignore it.
+        return [[clipper]];
+        break;
     }
-    return [[subject], [clipper]];
   }
 
-  // Intersect Mode.
-  //
-  // - If the list is empty, either the polygons
-  // are disjoint, or they are literally the same polygon. So
-  // we'll check to for equality
-  if (s_forward && c_forward) {
-    if (equals.compare(sPoly, cPoly)) {
-      return [[subject]];
-    }
-  }
-
-  // Subtract Modes
-  if (s_forward ^ c_forward == 1) {
-    var testpt, testpoly, outer, hole;
-
-    if (!s_forward && c_forward) {
-      // Subtract A - B
-      testpt = turfPoint(clipper[0]);
-      testpoly = sPoly;
-      outer = subject;
-      hole = clipper;
-    } else {
-      // Subtract B - A
-      testpt = turfPoint(subject[0]);
-      testpoly = cPoly;
-      outer = clipper;
-      hole = subject;
-    }
-
-    var inside  = turfInside(testpt, testpoly);
-
-    // If the testpt is inside, then "hole" is *actually* a
-    // hole, so we should return the outer and the hole both
-    if (inside) {
-
-      return [[outer, hole]];
-    } else {
-      // IF the hole isn't inside the polygon, then
-      // there was no overlap, so outer - hole = outer
-      return [[outer]];
+  // All points are degenerate. The shapes are spatially equal.
+  if (totalS == sPoints.count('degenerate', true)) {
+    switch (mode) {
+      case "subtractA":
+      case "subtractB":
+        return [];
+        break;
+      default:
+        return [[subject]];
     }
   }
 }
+
 
 /**
  * Builds the list of Polygon(s) representing the desired overlap of
@@ -180,14 +175,25 @@ function processPolygons(list, subject, clipper, sPoly, cPoly, s_forward, c_forw
  * @param  {[type]} sPoints [description]
  * @return {[type]}         [description]
  */
-function buildPolygons(sPoints) {
+function buildPolygons(sPoints, s_forward, c_forward) {
   var curr = sPoints.first;
   var polylist = [];
+  var onclip = false;
+  var endir = 'next';
+  var exdir = 'prev';
 
   while (curr = sPoints.firstIntersect()) {
     var poly = [[curr.x, curr.y]];
 
     do {
+      if (onclip) {
+        endir = c_forward ? 'next' : 'prev';
+        exdir = c_forward ? 'prev' : 'next';
+      } else {
+        endir = s_forward ? 'next' : 'prev';
+        exdir = s_forward ? 'prev' : 'next';
+      }
+
       curr.checked = true;
       if (curr.neighbor) {
         curr.neighbor.checked = true;
@@ -195,29 +201,24 @@ function buildPolygons(sPoints) {
 
       if (curr.entry) {
         do {
-            curr = curr.next;
-            if (!curr.intersect) {
-              poly.push([curr.x, curr.y]);
-            }
-
+            curr = curr[endir];
+            poly.push([curr.x, curr.y]);
         } while (!curr.intersect);
       } else {
         do {
-          curr = curr.prev;
-          if (!curr.intersect) {
-            poly.push([curr.x, curr.y]);
-          }
-
+          curr = curr[exdir];
+          poly.push([curr.x, curr.y]);
         } while (!curr.intersect);
       }
 
       // Jump to the other list
-      curr = curr.neighbor
+      curr = curr.neighbor;
+      onclip = !onclip;
+
     } while (!curr.checked);
     //poly.push(poly[0])
     polylist.push([poly])
   }
-
   return polylist;
 }
 
@@ -256,11 +257,11 @@ function buildIntersectionLists(sPoints, cPoints, sPoly, cPoly) {
         }
 
         cCurr = cCurr.next;
-      } while (cCurr != cPoints.first);
+      } while (cCurr !== cPoints.first);
     }
 
     sCurr = sCurr.next;
-  } while (sCurr != sPoints.first);
+  } while (sCurr !== sPoints.first);
 }
 
 /**
@@ -385,64 +386,31 @@ function setPointRelativeLocation(pt, poly) {
  *
  * http://arxiv-web3.library.cornell.edu/pdf/1211.3376v1.pdf
  *
- * @param {Ring}    list     [description]
- * @param {boolean} sForward [description]
- * @param {boolean} cForward [description]
- * @param {Polygon} sPoly    [description]
- * @param {Polygon} cPoly    [description]
+ * @param {Ring}    sPoints The subject polygon's vertices
  */
-function setEntryExit(list, list2, s_forward, c_forward, sPoly, cPoly) {
-  var curr = list.first;
-  var sForward = s_forward;
-  var cForward = c_forward;
-
-  do {
-    if (curr.intersect) {
-      var remove = (curr.areTypesEqual() && curr.neighbor.areTypesEqual());
-      handleEntryAndType(curr, sForward, cForward, remove);
-      handleEntryAndType(curr.neighbor, cForward, sForward, remove);
-      if (remove) curr.removeCond = "Doubled"
-
-      if (!remove && curr.entryIs(!sForward, !cForward)) {
-        c
-        curr.removeCond = "No Double, both nonentry"
-        remove = true;
-        curr.type = 'out';
-        curr.neighbor.type = 'out';
-      } else if (!remove && curr.entryIs(sForward, cForward)) {
-        curr.removeCond = "No Double, both entry";
-        remove = true;
-        curr.type = 'in';
-        curr.neighbor.type = 'in';
-      }
-      if (remove) {
-        curr.intersect = false;
-        curr.neighbor.intersect = false;
-      }
-    }
-    curr = curr.next;
-  } while (curr != list.first);
-}
-
-
-function setEntryExit2(sPoints, cPoints, sForward, cForward, sPoly, cPoly)
-{
+function setEntryExit(sPoints) {
   var first = sPoints.first;
   var curr = first;
 
   do {
-    handleEnEx(curr);
-    if (curr.neighbor) {
+    if (curr.intersect && curr.neighbor) {
+      handleEnEx(curr);
       handleEnEx(curr.neighbor);
-      console.log(curr.entryPair());
+
+      // If this and the neighbor share the same entry / exit flag values
+      // we need to throw them out and relabel
       switch (curr.entryPair()) {
         case "en/en":
           curr.remove = true;
           curr.type = "in";
+          curr.intersect = false;
+          curr.neighbor.intersect = false;
           break;
         case "ex/ex":
           curr.remove = true;
           curr.type = "out";
+          curr.intersect = false;
+          curr.neighbor.intersect = false;
           break;
       }
     }
@@ -451,10 +419,15 @@ function setEntryExit2(sPoints, cPoints, sForward, cForward, sPoly, cPoly)
   } while (curr != first)
 }
 
-
-function handleEnEx(curr)
-{
-  switch (curr.pairing()) {
+/**
+ * Handles deciding the entry / exit flag setting for a given point.
+ * This is probably where most of the things could be wrong
+ *
+ * @param  {Vertex} curr The vertex to flag
+ */
+function handleEnEx(curr) {
+  var cp = curr.pairing();
+  switch (cp) {
       case "in/out":
       case "on/out":
       case "in/on":
@@ -469,58 +442,20 @@ function handleEnEx(curr)
       case "in/in":
       case "on/on":
         var np = curr.neighbor.pairing();
-        if (np == "out/out" || np == "in/in" || np == "on/on") {
+        if (np == "out/out" || np == "in/in" || np == "on/on" || (cp == "on/on" && np == "on/out")) {
           curr.remove = true;
+          curr.neighbor.remove = true;
+          curr.neighbor.intersect = false;
+          curr.intersect = false;
         } else {
           handleEnEx(curr.neighbor);
           curr.entry = !curr.neighbor.entry;
         }
         break;
+      default:
+        // This shouldn't ever happen - It's here to confirm nothing stupid is happening.
+        console.error("UNKNOWN TYPE", curr.pairing())
     }
-}
-
-
-/**
- * Handles setting the entry/exit flag as well as readjusting the "type"
- * flag for a given vertex, given it's neighbors. This is part of the
- * GH degeneracy handling.
- *
- * @param  {Vertex}  curr   The vertex to flag
- * @param  {boolean} entry  Vertex entry flag
- * @param  {boolean} nEntry Neighbor entry flags
- * @param  {boolean} remove Whether we've detected that this Vertex should be
- *                          removed from the intersections list
- * @return {[type]}
- */
-function handleEntryAndType(curr, entry, nEntry, remove) {
-  if (curr.typeIs('on', 'on')) {
-    if (!curr.neighbor.typeIs('on', 'on')) {
-      handleEntryAndType(curr.neighbor, nEntry, entry, remove);
-      if (entry == nEntry) {
-        curr.entry = !curr.neighbor.entry
-      } else {
-        curr.entry = curr.neighbor.entry
-      }
-
-      if (remove) {
-        if (curr.neighbor.type == 'in') {
-          curr.type = 'out';
-        } else {
-          curr.type = 'in';
-        }
-      }
-    } else {
-      curr.type = 'in';
-    }
-  } else if (curr.typeIs('out', 'out') && remove) {
-    curr.type = 'out';
-  } else if (curr.typeIs('in', 'in') && remove) {
-    curr.type = 'in';
-  } else if (curr.typeIs('on', 'out') || curr.typeIs('in', 'on') || curr.typeIs('in', 'out')) {
-    curr.entry = !entry;
-  } else if (curr.typeIs('on', 'in') || curr.typeIs('out', 'on') || curr.typeIs('out', 'in')) {
-    curr.entry = entry;
-  }
 }
 
 
@@ -602,23 +537,36 @@ function lineIntersects(start1, end1, start2, end2) {
 }
 
 
-// Log all points
+/**
+ * Utility method for logging points
+ *
+ * @param  {[type]} sPoints [description]
+ * @param  {[type]} cPoints [description]
+ * @return {[type]}         [description]
+ */
 function logPoints(sPoints, cPoints) {
+  console.log("POINTS")
+  console.log("-----------------")
   var curr = sPoints.first
   do {
-    logPoint(curr);
+    curr.log();
     curr = curr.next
   } while (curr != sPoints.first)
   console.log("-----------------")
   if (!cPoints) return;
   var curr = cPoints.first
   do {
-    logPoint(curr);
+    curr.log();
     curr = curr.next
   } while (curr != cPoints.first)
 }
 
-// Log only intersections (or degeneracies that used to be intersections)
+/**
+ * Utility method for logging intersecions and degenerate points
+ *
+ * @param  {[type]} sPoints [description]
+ * @return {[type]}         [description]
+ */
 function logIntersections(sPoints) {
   console.log("-------------------")
   console.log("INTERSECTION LIST: ")
@@ -626,30 +574,16 @@ function logIntersections(sPoints) {
   var curr = sPoints.first
   do {
     if (curr.intersect || curr.degenerate) {
-      logPoint(curr);
+      curr.log()
     }
     curr = curr.next
   } while (curr != sPoints.first)
   console.log("")
 }
 
-// Log a point
-function logPoint(curr) {
-  console.log(curr.x + ", "+curr.y
-      +" INTERSECT: "+ (curr.intersect ? "Yes" : "No ")
-      +" ENTRY: "+(curr.entry ? "Yes": "No ")
-      +" DEGEN: "+(curr.degenerate ? "Yes": "No ")
-      +" TYPE: "+String(curr.prev.type+" ").slice(0, 3)
-          +" / "+String(curr.type+" ").slice(0, 3)
-          +" / "+String(curr.next.type+" ").slice(0, 3)
-      +" ALPHA: "+curr.alpha
-      +" REMOVE: "+ (curr.remove ? "Yes": "No") + " "
-      +" DOUBLE: "+ curr.removeCond
 
-    );
-}
 
-},{"./ring":4,"./vertex":8,"geojson-equality":9,"turf-inside":13,"turf-is-clockwise":14,"turf-point":15,"turf-polygon":16}],3:[function(require,module,exports){
+},{"./ring":4,"./vertex":8,"turf-inside":9,"turf-is-clockwise":10,"turf-point":11,"turf-polygon":12}],3:[function(require,module,exports){
 var ghClipping = require('./greiner-hormann');
 var turfInside = require('turf-inside');
 var turfPoint = require('turf-point');
@@ -665,7 +599,6 @@ module.exports = function(subject, clipper) {
   var holes = utils.holes(subject).concat(utils.holes(clipper));
   var result = [];
 
-  // Intersect all hulls
   for (var i = 0; i < hulls.length; i++) {
     for (var j = i+1; j < hulls.length; j++) {
       var test = ghClipping(hulls[i], hulls[j], true, true);
@@ -678,16 +611,18 @@ module.exports = function(subject, clipper) {
   // Union all the holes then subtract them rom the result
   if (holes.length > 0) {
     var holeUnion = union(holes);
+
     return subtract(result, utils.outerHulls(holeUnion));
   }
 
   return result;
 }
 
-},{"./greiner-hormann":2,"./subtract":5,"./union":6,"./util":7,"turf-inside":13,"turf-point":15,"turf-polygon":16}],4:[function(require,module,exports){
+},{"./greiner-hormann":2,"./subtract":5,"./union":6,"./util":7,"turf-inside":9,"turf-point":11,"turf-polygon":12}],4:[function(require,module,exports){
 Vertex = require('./vertex');
+
 /**
- * Ring is a *circular* doubly-linked list; Every node
+ * Ring is a circular doubly-linked list; Every node
  * has a next and a prev, even if it's the only node in the list.
  *
  * This supports some search methods that need to wrap back to the start of the list.
@@ -696,13 +631,34 @@ function Ring () {
     this.first = null;
 }
 
+Ring.prototype.count = function(countkey, countval) {
+    var curr = this.first;
+    var count = 0;
+    while (true) {
+        if (countkey) {
+            if (curr[countkey] === countval) {
+                count++;
+            }
+        } else {
+            count++;
+        }
+        curr = curr.next;
+
+        if (curr == this.first) {
+            break;
+        }
+    }
+    return count;
+}
+
+
 /**
  * Takes an array of coordinates and constructs a Ring
  *
- * @param  {array} coordinates [description]
- * @return {Ring}             [description]
+ * @param  {array} coordinates   the array of coordinates to convert to a Ring
+ * @return {Ring}
  */
-Ring.fromCoords = function(coordinates) {
+Ring.fromArray = function(coordinates) {
     var ring = new Ring()
 
     for (var i = 0; i < (coordinates.length - 1); i++) {
@@ -718,8 +674,7 @@ Ring.fromCoords = function(coordinates) {
  * just updates pointers to put the point at
  * the end of the list
  *
- * @param  {Vertex} vertex [description]
- * @return {[type]}        [description]
+ * @param  {Vertex} vertex the vertex to push
  */
 Ring.prototype.push = function(vertex) {
     if (!this.first) {
@@ -743,10 +698,9 @@ Ring.prototype.push = function(vertex) {
  * start and end, the new vertex is inserted
  * based on it's alpha value
  *
- * @param  {Vertex} vertex [description]
- * @param  {Vertex} start  [description]
- * @param  {Vertex} end    [description]
- * @return {[type]}        [description]
+ * @param  {Vertex} vertex the vertex to insert
+ * @param  {Vertex} start  the "leftmost" vertex this point could be inserted next to
+ * @param  {Vertex} end    the "rightmost" vertex this could could be inserted next to
  */
 Ring.prototype.insert = function(vertex, start, end) {
     var curr = start.next;
@@ -764,15 +718,15 @@ Ring.prototype.insert = function(vertex, start, end) {
 }
 
 /**
- * Start at the start vertx, and get the next
- * point that *isn't* an intersection
+ * Start at the start vertex, and get the next
+ * point that isn't an intersection
  *
- * @param  {Vertex} start [description]
- * @return {Vertex}       [description]
+ * @param  {Vertex} start the vertex to start searching at
+ * @return {Vertex} the next non-intersect
  */
 Ring.prototype.nextNonIntersect = function (start) {
     var curr = start;
-    while (curr.intersect && curr != this.first && curr.next != this.first) {
+    while (curr.intersect && curr != this.first) {
         curr = curr.next
     }
     return curr;
@@ -781,7 +735,7 @@ Ring.prototype.nextNonIntersect = function (start) {
 /**
  * Returns the first unchecked intersection in the list
  *
- * @return {[type]} [description]
+ * @return {Vertex|bool}
  */
 Ring.prototype.firstIntersect = function () {
     var curr =  this.first;
@@ -800,6 +754,11 @@ Ring.prototype.firstIntersect = function () {
     return false;
 }
 
+/**
+ * Converts the Ring into an array
+ *
+ * @return {array} array representation of the ring
+ */
 Ring.prototype.toArray = function () {
     var curr = this.first;
     var points = [];
@@ -821,7 +780,6 @@ var ghClipping = require('./greiner-hormann');
 module.exports = function(subject, clip) {
   subject = util.clone(subject);
   clip = util.clone(clip);
-
   // TODO:
   // Subtract each outer hull of the clip from the subject
   // If there are any holes in the subject, subtract those as well
@@ -834,7 +792,6 @@ module.exports = function(subject, clip) {
     var ilen = subject.length;
     for (var j = 0; j < subject.length; j++) {
       var test = ghClipping(subject[j][0], clip[i], false, true);
-
       // Copy the primary hull of the intersect record that
       // we just clipped against the hull
       subject[j][0] = test[0][0];
@@ -1035,6 +992,10 @@ exports.isRing = function(poly) {
 exports.outerHulls = function(collection) {
   var hulls = [];
 
+  if (exports.isPolygon(collection)) {
+    return [collection[0]];
+  }
+
   for (var i = 0; i < collection.length; i++) {
     if (exports.isMultiPolygon(collection[i])) {
       // Each polygon
@@ -1059,6 +1020,10 @@ exports.outerHulls = function(collection) {
  */
 exports.holes = function(collection) {
   var holes = [];
+
+  if (exports.isPolygon(collection)) {
+    return collection.slice(1)
+  }
 
   for (var i = 0; i < collection.length; i++) {
     if (exports.isMultiPolygon(collection[i])) {
@@ -1091,14 +1056,29 @@ function Vertex (x, y, alpha, intersect, degenerate) {
     this.next = null;
     this.prev = null;
     this.type = null; // can be "in", "out", "on"
-    this.justMarked = false;
     this.remove = false;
 }
 
+/**
+ * Returns a string representing the types of the previous and next vertices.
+ * For example, if the prev vertex had type "in" and the next had type "out",
+ * the pairing would be "in/out". This matches the way pairs are referenced in
+ * the Greiner-Hormann Degeneracy paper.
+ *
+ * @return {String} the pairing description
+ */
 Vertex.prototype.pairing = function () {
     return this.prev.type + "/" + this.next.type;
 }
 
+/**
+ * Returns a string representing the entry / exit flag of this vertex and it's neighbor
+ * For example, if the current vertex was flagged entry = true and it's neighbor was flagged
+ * entry = false, the entryPair would be "en/ex" (short for "entry/exit"). This matches the
+ * way flags are referenced in the Greiner-Hormann Degeneracy paper.
+ *
+ * @return {String} the entry/exit pair string
+ */
 Vertex.prototype.entryPair = function() {
     var entry = this.entry ? "en" : "ex";
     var nEntry = this.neighbor.entry ? "en" : "ex";
@@ -1106,7 +1086,12 @@ Vertex.prototype.entryPair = function() {
     return entry+"/"+nEntry;
 }
 
-
+/**
+ * Determine if this vertex is equal to another
+ *
+ * @param  {Vertex} other the vertex to compare with
+ * @return {bool}   whether or not the vertices are equal
+ */
 Vertex.prototype.equals = function(other) {
     if (this.x == other.x && this.y == other.y) {
         return true;
@@ -1114,303 +1099,27 @@ Vertex.prototype.equals = function(other) {
     return false;
 };
 
-Vertex.prototype.typeIs = function(p, n) {
-    if (this.prev.type == p && this.next.type == n) {
-        return true;
-    }
-    return false;
+/**
+ * Utility method to log the vertex, only for debugging
+ */
+Vertex.prototype.log = function() {
+  console.log(
+      "INTERSECT: "+ (this.intersect ? "Yes" : "No ")
+      +" ENTRY: "+(this.entry ? "Yes": "No ")
+      +" DEGEN: "+(this.degenerate ? "Yes": "No ")
+      +" TYPE: "+String(this.prev.type+" ").slice(0, 3)
+          +" / "+String(this.type+" ").slice(0, 3)
+          +" / "+String(this.next.type+" ").slice(0, 3)
+      +" ALPHA: "+ this.alpha.toPrecision(3)
+      +" REMOVE: "+ (this.remove ? "Yes": "No") + " "
+      +this.x + ", "+this.y
+    );
 };
 
-Vertex.prototype.areTypesEqual = function () {
-    if (this.typeIs('on', 'on') || this.typeIs('out', 'out') || this.typeIs('in','in')) {
-        return true;
-    }
-    return false;
-}
-
-
-Vertex.prototype.entryIs = function(curr, neighbor) {
-    if (this.entry == curr && this.neighbor.entry == neighbor) {
-        return true;
-    }
-    return false;
-}
 
 module.exports = Vertex;
 
 },{}],9:[function(require,module,exports){
-//index.js
-var deepEqual = require('deep-equal');
-
-var Equality = function(opt) {
-  this.precision = opt && opt.precision ? opt.precision : 17;
-  this.direction = opt && opt.direction ? opt.direction : false;
-  this.pseudoNode = opt && opt.pseudoNode ? opt.pseudoNode : false;
-  this.objectComparator = opt && opt.objectComparator ? opt.objectComparator : objectComparator;
-};
-
-Equality.prototype.compare = function(g1,g2) {
-  if (g1.type !== g2.type || !sameLength(g1,g2)) return false;
-
-  switch(g1.type) {
-  case 'Point':
-    return this.compareCoord(g1.coordinates, g2.coordinates);
-    break;
-  case 'LineString':
-    return this.compareLine(g1.coordinates, g2.coordinates,0,false);
-    break;
-  case 'Polygon':
-    return this.comparePolygon(g1,g2);
-    break;
-  case 'Feature':
-    return this.compareFeature(g1, g2);
-  default:
-    if (g1.type.indexOf('Multi') === 0) {
-      var context = this;
-      var g1s = explode(g1);
-      var g2s = explode(g2);
-      return g1s.every(function(g1part) {
-        return this.some(function(g2part) {
-          return context.compare(g1part,g2part);
-        });
-      },g2s);
-    }
-  }
-  return false;
-};
-
-function explode(g) {
-  return g.coordinates.map(function(part) {
-    return {
-      type: g.type.replace('Multi', ''),
-      coordinates: part}
-  });
-}
-//compare length of coordinates/array
-function sameLength(g1,g2) {
-   return g1.hasOwnProperty('coordinates') ?
-    g1.coordinates.length === g2.coordinates.length
-    : g1.length === g2.length;
-}
-
-// compare the two coordinates [x,y]
-Equality.prototype.compareCoord = function(c1,c2) {
-  return c1[0].toFixed(this.precision) === c2[0].toFixed(this.precision)
-    && c1[1].toFixed(this.precision) === c2[1].toFixed(this.precision);
-};
-
-Equality.prototype.compareLine = function(path1,path2,ind,isPoly) {
-  if (!sameLength(path1,path2)) return false;
-  var p1 = this.pseudoNode ? path1 : this.removePseudo(path1);
-  var p2 = this.pseudoNode ? path2 : this.removePseudo(path2);
-  if (isPoly && !this.compareCoord(p1[0],p2[0])) {
-    // fix start index of both to same point
-    p2 = this.fixStartIndex(p2,p1);
-    if(!p2) return;
-  }
-  // for linestring ind =0 and for polygon ind =1
-  var sameDirection = this.compareCoord(p1[ind],p2[ind]);
-  if (this.direction || sameDirection
-  ) {
-    return this.comparePath(p1, p2);
-  } else {
-    if (this.compareCoord(p1[ind],p2[p2.length - (1+ind)])
-    ) {
-      return this.comparePath(p1.slice().reverse(), p2);
-    }
-    return false;
-  }
-};
-Equality.prototype.fixStartIndex = function(sourcePath,targetPath) {
-  //make sourcePath first point same as of targetPath
-  var correctPath,ind = -1;
-  for (var i=0; i< sourcePath.length; i++) {
-    if(this.compareCoord(sourcePath[i],targetPath[0])) {
-      ind = i;
-      break;
-    }
-  }
-  if (ind >= 0) {
-    correctPath = [].concat(
-      sourcePath.slice(ind,sourcePath.length),
-      sourcePath.slice(1,ind+1));
-  }
-  return correctPath;
-};
-Equality.prototype.comparePath = function (p1,p2) {
-  var cont = this;
-  return p1.every(function(c,i) {
-    return cont.compareCoord(c,this[i]);
-  },p2);
-};
-
-Equality.prototype.comparePolygon = function(g1,g2) {
-  if (this.compareLine(g1.coordinates[0],g2.coordinates[0],1,true)) {
-    var holes1 = g1.coordinates.slice(1,g1.coordinates.length);
-    var holes2 = g2.coordinates.slice(1,g2.coordinates.length);
-    var cont = this;
-    return holes1.every(function(h1) {
-      return this.some(function(h2) {
-        return cont.compareLine(h1,h2,1,true);
-      });
-    },holes2);
-  } else {
-    return false;
-  }
-};
-
-Equality.prototype.compareFeature = function(g1,g2) {
-  if (
-    g1.id !== g2.id ||
-    !this.objectComparator(g1.properties, g2.properties)
-  ) {
-    return false;
-  }
-
-  return this.compare(g1.geometry, g2.geometry);
-};
-
-Equality.prototype.removePseudo = function(path) {
-  //TODO to be implement
-  return path;
-};
-
-function objectComparator(obj1, obj2) {
-  return deepEqual(obj1, obj2, {strict: true});
-}
-
-module.exports = Equality;
-
-},{"deep-equal":10}],10:[function(require,module,exports){
-var pSlice = Array.prototype.slice;
-var objectKeys = require('./lib/keys.js');
-var isArguments = require('./lib/is_arguments.js');
-
-var deepEqual = module.exports = function (actual, expected, opts) {
-  if (!opts) opts = {};
-  // 7.1. All identical values are equivalent, as determined by ===.
-  if (actual === expected) {
-    return true;
-
-  } else if (actual instanceof Date && expected instanceof Date) {
-    return actual.getTime() === expected.getTime();
-
-  // 7.3. Other pairs that do not both pass typeof value == 'object',
-  // equivalence is determined by ==.
-  } else if (typeof actual != 'object' && typeof expected != 'object') {
-    return opts.strict ? actual === expected : actual == expected;
-
-  // 7.4. For all other Object pairs, including Array objects, equivalence is
-  // determined by having the same number of owned properties (as verified
-  // with Object.prototype.hasOwnProperty.call), the same set of keys
-  // (although not necessarily the same order), equivalent values for every
-  // corresponding key, and an identical 'prototype' property. Note: this
-  // accounts for both named and indexed properties on Arrays.
-  } else {
-    return objEquiv(actual, expected, opts);
-  }
-}
-
-function isUndefinedOrNull(value) {
-  return value === null || value === undefined;
-}
-
-function isBuffer (x) {
-  if (!x || typeof x !== 'object' || typeof x.length !== 'number') return false;
-  if (typeof x.copy !== 'function' || typeof x.slice !== 'function') {
-    return false;
-  }
-  if (x.length > 0 && typeof x[0] !== 'number') return false;
-  return true;
-}
-
-function objEquiv(a, b, opts) {
-  var i, key;
-  if (isUndefinedOrNull(a) || isUndefinedOrNull(b))
-    return false;
-  // an identical 'prototype' property.
-  if (a.prototype !== b.prototype) return false;
-  //~~~I've managed to break Object.keys through screwy arguments passing.
-  //   Converting to array solves the problem.
-  if (isArguments(a)) {
-    if (!isArguments(b)) {
-      return false;
-    }
-    a = pSlice.call(a);
-    b = pSlice.call(b);
-    return deepEqual(a, b, opts);
-  }
-  if (isBuffer(a)) {
-    if (!isBuffer(b)) {
-      return false;
-    }
-    if (a.length !== b.length) return false;
-    for (i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
-  }
-  try {
-    var ka = objectKeys(a),
-        kb = objectKeys(b);
-  } catch (e) {//happens when one is a string literal and the other isn't
-    return false;
-  }
-  // having the same number of owned properties (keys incorporates
-  // hasOwnProperty)
-  if (ka.length != kb.length)
-    return false;
-  //the same set of keys (although not necessarily the same order),
-  ka.sort();
-  kb.sort();
-  //~~~cheap key test
-  for (i = ka.length - 1; i >= 0; i--) {
-    if (ka[i] != kb[i])
-      return false;
-  }
-  //equivalent values for every corresponding key, and
-  //~~~possibly expensive deep test
-  for (i = ka.length - 1; i >= 0; i--) {
-    key = ka[i];
-    if (!deepEqual(a[key], b[key], opts)) return false;
-  }
-  return typeof a === typeof b;
-}
-
-},{"./lib/is_arguments.js":11,"./lib/keys.js":12}],11:[function(require,module,exports){
-var supportsArgumentsClass = (function(){
-  return Object.prototype.toString.call(arguments)
-})() == '[object Arguments]';
-
-exports = module.exports = supportsArgumentsClass ? supported : unsupported;
-
-exports.supported = supported;
-function supported(object) {
-  return Object.prototype.toString.call(object) == '[object Arguments]';
-};
-
-exports.unsupported = unsupported;
-function unsupported(object){
-  return object &&
-    typeof object == 'object' &&
-    typeof object.length == 'number' &&
-    Object.prototype.hasOwnProperty.call(object, 'callee') &&
-    !Object.prototype.propertyIsEnumerable.call(object, 'callee') ||
-    false;
-};
-
-},{}],12:[function(require,module,exports){
-exports = module.exports = typeof Object.keys === 'function'
-  ? Object.keys : shim;
-
-exports.shim = shim;
-function shim (obj) {
-  var keys = [];
-  for (var key in obj) keys.push(key);
-  return keys;
-}
-
-},{}],13:[function(require,module,exports){
 // http://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
 // modified from: https://github.com/substack/point-in-polygon/blob/master/index.js
 // which was modified from http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
@@ -1507,7 +1216,7 @@ function inRing (pt, ring) {
   for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     var xi = ring[i][0], yi = ring[i][1];
     var xj = ring[j][0], yj = ring[j][1];
-
+    
     var intersect = ((yi > pt[1]) != (yj > pt[1]))
         && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
     if (intersect) isInside = !isInside;
@@ -1516,7 +1225,7 @@ function inRing (pt, ring) {
 }
 
 
-},{}],14:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = function(ring){
   var sum = 0;
   var i = 1;
@@ -1530,7 +1239,7 @@ module.exports = function(ring){
   }
   return sum > 0;
 }
-},{}],15:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /**
  * Takes coordinates and properties (optional) and returns a new {@link Point} feature.
  *
@@ -1562,7 +1271,7 @@ module.exports = function(coordinates, properties) {
   };
 };
 
-},{}],16:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /**
  * Takes an array of LinearRings and optionally an {@link Object} with properties and returns a GeoJSON {@link Polygon} feature.
  *

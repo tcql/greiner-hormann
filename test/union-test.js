@@ -13,7 +13,7 @@ test('union polygons', function (t) {
   });
 
   // Run specific test cases
-  glob.sync(__dirname + '/fixtures/in/union/UnionSelf.json').forEach(function(input) {
+  glob.sync(__dirname + '/fixtures/in/union/*.json').forEach(function(input) {
       var features = JSON.parse(fs.readFileSync(input));
       var output = union(features[0], features[1]);
       fs.writeFileSync(input.replace('/in/', '/out/'), JSON.stringify(output, null, 2));

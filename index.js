@@ -1,12 +1,8 @@
-var intersect = require('./lib/intersect');
-var union = require('./lib/union');
-var utils = require('./lib/util');
-
-
 module.exports = {
-  union: union,
-  intersect: intersect,
+  union: require('./lib/union'),
+  intersect: require('./lib/intersect'),
+  subtract: require('./lib/subtract'),
 
   // include utils to make things easier
-  utils: utils
+  utils: require('./lib/util')
 };

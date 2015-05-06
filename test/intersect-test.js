@@ -10,5 +10,12 @@ test('intersect polygons', function (t) {
       fs.writeFileSync(input.replace('/in/', '/out/'), JSON.stringify(output, null, 2));
       t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/', '/out/'))), input);
   });
+
+  glob.sync(__dirname + '/fixtures/in/common/*.json').forEach(function(input) {
+      var features = JSON.parse(fs.readFileSync(input));
+      var output = intersect(features[0], features[1]);
+      fs.writeFileSync(input.replace('/in/common/', '/out/intersect'), JSON.stringify(output, null, 2));
+      t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/common/', '/out/intersect'))), input);
+  });
   t.end();
 });

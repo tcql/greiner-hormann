@@ -33,3 +33,6 @@ Run `npm test`. This runs tests for `intersect` only. There are numerous tests f
 - [Python Polyclip](https://github.com/helderco/univ-polyclip)
 - [Python Polyclip + some degeneracy handling](https://github.com/karimbahgat/Pure-Python-Greiner-Hormann-Polygon-Clipping/)
 
+### Notes
+
+- It's been noted that the [Degeneracy handling](http://arxiv-web3.library.cornell.edu/pdf/1211.3376v1.pdf) paper ("Clipping of Arbitrary Polygons with Degeneracies") has been withdrawn because it doesn't truly solve all cases it claims to. As such, I've deviated somewhat from it's recommendations, but in general I'm using the techniques (such as in/on/out Vertex labelling and intersection removal) described in the paper

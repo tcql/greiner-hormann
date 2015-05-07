@@ -12,7 +12,7 @@ test('subtract polygons', function (t) {
       t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/common/', '/out/subtract/'))), input);
   });
 
-  // Run specific test cases
+  // // Run specific test cases
   glob.sync(__dirname + '/fixtures/in/subtract/*.json').forEach(function(input) {
       var features = JSON.parse(fs.readFileSync(input));
       var output = subtract(features[0], features[1]);

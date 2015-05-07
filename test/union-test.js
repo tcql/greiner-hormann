@@ -2,7 +2,7 @@ var union = require('../').union,
   test = require('tape'),
   glob = require('glob'),
   fs = require('fs');
-
+global.REGEN = true;
 test('union polygons', function (t) {
   // Run common test cases
   glob.sync(__dirname + '/fixtures/in/common/*.json').forEach(function(input) {

@@ -1,5 +1,5 @@
 
-global.REGEN = false;
+global.REGEN = true;
 
 require('./intersect-test')
 require('./union-test')

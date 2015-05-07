@@ -12,7 +12,7 @@ test('union polygons', function (t) {
       t.deepEqual(output, JSON.parse(fs.readFileSync(input.replace('/in/common/', '/out/union/'))), input);
   });
 
-  // Run specific test cases
+  // // Run specific test cases
   glob.sync(__dirname + '/fixtures/in/union/*.json').forEach(function(input) {
       var features = JSON.parse(fs.readFileSync(input));
       var output = union(features[0], features[1]);

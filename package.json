@@ -6,8 +6,8 @@
   "scripts": {
     "test": "node test/test.js",
     "doc": "dox -r < index.js | doxme --readme > README.md",
-    "build-debug": "browserify index.js --debug --standalone greiner-hormann | exorcist dist/greiner-hormann.js.map > dist/greiner-hormann.js",
-    "build-min": "browserify index.js --standalone greiner-hormann | uglifyjs -c -m > dist/greiner-hormann.min.js",
+    "build-debug": "browserify index.js --debug --standalone ghClipping | exorcist dist/greiner-hormann.js.map > dist/greiner-hormann.js",
+    "build-min": "browserify index.js --standalone ghClipping | uglifyjs -c -m > dist/greiner-hormann.min.js",
     "build": "npm run build-debug && npm run build-min"
   },
   "repository": {

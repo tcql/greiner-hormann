@@ -7,6 +7,7 @@ var simple = JSON.parse(fs.readFileSync(__dirname+'/test/fixtures/in/Intersect1.
 var degenerate = JSON.parse(fs.readFileSync(__dirname+'/test/fixtures/in/common/Degenerate.json'));
 var huge2 = JSON.parse(fs.readFileSync(__dirname+'/test/fixtures/in/common/Huge2.json'));
 var huge = JSON.parse(fs.readFileSync(__dirname+'/test/fixtures/in/common/Huge.json'));
+var hugeSC = JSON.parse(fs.readFileSync(__dirname+'/test/fixtures/in/common/20190.json'));
 
 var suite = new Benchmark.Suite('turf-intersect');
 suite
@@ -25,6 +26,9 @@ suite
   .add('intersect#huge-multi, no artifact', function () {
     gh.intersect(huge2[0], huge2[1]);
   })
+  .add('intersect#huge S&C', function () {
+    gh.intersect(hugeSC[0], hugeSC[1]);
+  })
   .add('subtract#degenerate', function () {
     gh.subtract(degenerate[0], degenerate[1]);
   })
@@ -34,6 +38,9 @@ suite
   .add('subtract#huge-multi, no artifact', function () {
     gh.subtract(huge2[0], huge2[1]);
   })
+  .add('subtract#huge S&C', function () {
+    gh.subtract(hugeSC[0], hugeSC[1]);
+  })
   .add('union#degenerate', function () {
     gh.union(degenerate[0], degenerate[1]);
   })
@@ -42,6 +49,9 @@ suite
   })
   .add('union#huge-multi, no artifact', function () {
     gh.union(huge2[0], huge2[1]);
+  })
+  .add('union#huge S&C', function () {
+    gh.union(hugeSC[0], hugeSC[1]);
   })
   .on('cycle', function (event) {
     console.log(String(event.target));

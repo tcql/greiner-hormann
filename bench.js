@@ -29,30 +29,30 @@ suite
   .add('intersect#huge S&C', function () {
     gh.intersect(hugeSC[0], hugeSC[1]);
   })
-  .add('subtract#degenerate', function () {
-    gh.subtract(degenerate[0], degenerate[1]);
-  })
-  .add('subtract#huge', function () {
-    gh.subtract(huge[0], huge[1]);
-  })
-  .add('subtract#huge-multi, no artifact', function () {
-    gh.subtract(huge2[0], huge2[1]);
-  })
-  .add('subtract#huge S&C', function () {
-    gh.subtract(hugeSC[0], hugeSC[1]);
-  })
-  .add('union#degenerate', function () {
-    gh.union(degenerate[0], degenerate[1]);
-  })
-  .add('union#huge', function () {
-    gh.union(huge[0], huge[1]);
-  })
-  .add('union#huge-multi, no artifact', function () {
-    gh.union(huge2[0], huge2[1]);
-  })
-  .add('union#huge S&C', function () {
-    gh.union(hugeSC[0], hugeSC[1]);
-  })
+  // .add('subtract#degenerate', function () {
+  //   gh.subtract(degenerate[0], degenerate[1]);
+  // })
+  // .add('subtract#huge', function () {
+  //   gh.subtract(huge[0], huge[1]);
+  // })
+  // .add('subtract#huge-multi, no artifact', function () {
+  //   gh.subtract(huge2[0], huge2[1]);
+  // })
+  // .add('subtract#huge S&C', function () {
+  //   gh.subtract(hugeSC[0], hugeSC[1]);
+  // })
+  // .add('union#degenerate', function () {
+  //   gh.union(degenerate[0], degenerate[1]);
+  // })
+  // .add('union#huge', function () {
+  //   gh.union(huge[0], huge[1]);
+  // })
+  // .add('union#huge-multi, no artifact', function () {
+  //   gh.union(huge2[0], huge2[1]);
+  // })
+  // .add('union#huge S&C', function () {
+  //   gh.union(hugeSC[0], hugeSC[1]);
+  // })
   .on('cycle', function (event) {
     console.log(String(event.target));
   })

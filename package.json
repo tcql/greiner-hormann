@@ -1,6 +1,6 @@
 {
   "name": "gh-clipping-algorithm",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Methods for spatial operations on (Multi)Polygons",
   "main": "index.js",
   "scripts": {

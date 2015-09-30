@@ -4,6 +4,7 @@
   "description": "Methods for spatial operations on (Multi)Polygons",
   "main": "index.js",
   "scripts": {
+    "lint": "eslint lib/*.js",
     "test": "node test/test.js",
     "doc": "dox -r < index.js | doxme --readme > README.md",
     "build-debug": "browserify index.js --debug --standalone ghClipping | exorcist dist/greiner-hormann.js.map > dist/greiner-hormann.js",
@@ -33,6 +34,8 @@
     "browserify": "^9.0.3",
     "dox": "^0.6.1",
     "doxme": "^1.4.2",
+    "eslint": "^1.5.1",
+    "eslint-config-mourner": "^1.0.1",
     "glob": "~4.3.1",
     "tape": "~3.0.3",
     "uglify-js": "^2.4.16"

@@ -2,6 +2,6 @@
   "extends": "mourner",
   "rules": {
     "strict": [2, "never"],
-    "indent": [2, 2]
+    "indent": [2, 2, {"SwitchCase": 1}]
   }
 }

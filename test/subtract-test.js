@@ -3,6 +3,8 @@ var subtract = require('../').subtract,
   fs = require('fs'),
   glob = require('glob');
 
+global.REGEN = true;
+
 test('subtract polygons', function (t) {
   // Run common test cases
   glob.sync(__dirname + '/fixtures/in/common/*.json').forEach(function(input) {

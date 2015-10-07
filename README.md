@@ -1,5 +1,7 @@
 # Greiner-Hormann Polygon Clipping
 
+[![Build Status](https://travis-ci.org/tcql/greiner-hormann.svg)](https://travis-ci.org/tcql/greiner-hormann)
+
 This is an experimental implementation of the Greiner-Hormann polygon clipping algorithm, with additional degeneracy handling.
 
 - **Support**
